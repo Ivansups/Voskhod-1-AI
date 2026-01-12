@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "voskhod-1-ai"
+version = "0.1.0"
+description = "AI assistant for university with RAG system and Telegram bot"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.104.1"
+uvicorn = "^0.24.0"
+sqlalchemy = "^2.0.23"
+asyncpg = "^0.29.0"
+qdrant-client = "^1.6.9"
+pydantic = "^2.5.0"
+pydantic-settings = "^2.1.0"
+httpx = "^0.25.2"
+langchain = "^0.0.350"
+llama-index = "^0.9.23"
+openai = "^1.6.1"
+gitpython = "^3.1.40"
+python-multipart = "^0.0.6"
+aiogram = "^3.4.1"
+aiofiles = "^23.2.1"
+python-dotenv = "^1.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.3"
+pytest-asyncio = "^0.21.1"
+black = "^23.11.0"
+isort = "^5.12.0"
+mypy = "^1.7.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry-core/build-backend"

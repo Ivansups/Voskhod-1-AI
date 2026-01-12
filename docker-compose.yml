@@ -1,0 +1,148 @@
+services:
+  # PostgreSQL база данных
+  postgres:
+    image: postgres:15-alpine
+    container_name: voskhod_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - voskhod_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Qdrant векторная база данных
+  qdrant:
+    image: qdrant/qdrant:v1.7.4
+    container_name: voskhod_qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - voskhod_network
+
+  # Redis для кэширования
+  redis:
+    image: redis:7-alpine
+    container_name: voskhod_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - voskhod_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # FastAPI приложение
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: voskhod_api
+    environment:
+      # PostgreSQL
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB}
+
+      # Qdrant
+      QDRANT_URL: ${QDRANT_URL}
+      QDRANT_API_KEY: ${QDRANT_API_KEY}
+      QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION_NAME}
+
+      # Redis
+      REDIS_URL: ${REDIS_URL}
+
+      # Telegram
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      API_BASE_URL: ${API_BASE_URL}
+
+      # OpenRouter Configuration (единственный LLM провайдер)
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL}
+      OPENROUTER_TEMPERATURE: ${OPENROUTER_TEMPERATURE}
+      OPENROUTER_MAX_TOKENS: ${OPENROUTER_MAX_TOKENS}
+
+      # Ollama Configuration
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
+      OLLAMA_EMBEDDING_BASE_URL: ${OLLAMA_EMBEDDING_BASE_URL}
+      OLLAMA_MODEL: ${OLLAMA_MODEL}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL}
+      OLLAMA_TEMPERATURE: ${OLLAMA_TEMPERATURE}
+      OLLAMA_MAX_TOKENS: ${OLLAMA_MAX_TOKENS}
+
+      # Embedding Service Selection
+      EMBEDDING_SERVICE: ${EMBEDDING_SERVICE}
+
+      # RAG Configuration
+      RAG_TOP_K: ${RAG_TOP_K}
+      RAG_SCORE_THRESHOLD: ${RAG_SCORE_THRESHOLD}
+
+      # Git Sync
+      GIT_REPO_URL: ${GIT_REPO_URL}
+      GIT_LOCAL_PATH: ${GIT_LOCAL_PATH}
+      GIT_BRANCH: ${GIT_BRANCH}
+      GIT_SYNC_INTERVAL_MINUTES: ${GIT_SYNC_INTERVAL_MINUTES}
+
+      # Development & Logging
+      LOG_LEVEL: ${LOG_LEVEL}
+      DEBUG: ${DEBUG}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - voskhod_network
+    volumes:
+      - ./server:/app/server:ro
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Телеграм бот (опционально, можно запускать отдельно)
+  telegram_bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.telegram
+    container_name: voskhod_telegram_bot
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      API_BASE_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - voskhod_network
+    restart: unless-stopped
+    # profiles: ["bot"]  # Включить только при необходимости
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  redis_data:
+
+networks:
+  voskhod_network:
+    driver: bridge

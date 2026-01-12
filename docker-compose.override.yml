@@ -1,0 +1,49 @@
+# Override файл для локальной разработки
+# Копирует docker-compose.yml и переопределяет настройки
+
+services:
+  api:
+    environment:
+      # Переопределите эти значения в вашем .env файле
+      POSTGRES_USER: voskhod_user
+      POSTGRES_PASSWORD: voskhod_password
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: voskhod_ai
+
+      QDRANT_URL: http://qdrant:6333
+      REDIS_URL: redis://redis:6379
+
+      # Добавьте ваши реальные ключи
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-your_openrouter_key_here}
+      OPENROUTER_MODEL: openai/gpt-3.5-turbo
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-your_telegram_token_here}
+
+      # Ollama для эмбеддингов (улучшенная модель)
+      EMBEDDING_SERVICE: ollama
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_EMBEDDING_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_EMBEDDING_MODEL: mxbai-embed-large
+
+      # Qdrant настройки
+      QDRANT_COLLECTION_NAME: university_knowledge
+
+      # RAG настройки
+      RAG_TOP_K: 5
+      RAG_SCORE_THRESHOLD: 0.7
+
+      # Git Sync
+      GIT_BRANCH: master
+
+    volumes:
+      # Монтируем исходный код для hot reload
+      - ./server:/app/server
+      - /app/server/__pycache__  # Исключаем кэш
+
+    # Включаем телеграм бота по умолчанию для разработки
+    profiles: []
+
+  telegram_bot:
+    profiles: []  # Включаем бота по умолчанию
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-your_telegram_token_here}
+      API_BASE_URL: http://api:8000
