@@ -1,18 +1,20 @@
-from fastapi import APIRouter, Request, Depends, HTTPException, Form
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
-from application.services.key_generator.key_gen import generate_key, EnumRole
-from application.infrastructure.postgreSQL.models.key import Key
+from typing import Optional
+
 from application.api.deps import get_db, verify_api_key_dependency
+from application.infrastructure.postgreSQL.models.key import Key
+from application.services.key_generator.key_gen import EnumRole, generate_key
+from fastapi import APIRouter, Depends, Form, HTTPException
+from pydantic import BaseModel
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(tags=["keys"])
 
 
 class KeyResponse(BaseModel):
     """Pydantic модель для ответа с информацией о ключе."""
+
     id: str
     key_value: str
     active: bool
@@ -81,19 +83,20 @@ async def create_key(
 
 @router.get("/keys", description="Получение всех ключей (требуется аутентификация)")
 async def get_keys(
-    _: None = Depends(verify_api_key_dependency),
-    db: AsyncSession = Depends(get_db)
+    _: None = Depends(verify_api_key_dependency), db: AsyncSession = Depends(get_db)
 ) -> list[KeyResponse]:
     result = await db.execute(select(Key).order_by(Key.created_at.desc()))
     keys = result.scalars().all()
     return [KeyResponse.from_orm(key) for key in keys]
 
 
-@router.get("/keys/{key_id}", description="Получение ключа по его ID (требуется аутентификация)")
+@router.get(
+    "/keys/{key_id}", description="Получение ключа по его ID (требуется аутентификация)"
+)
 async def get_key(
     key_id: str,
     _: None = Depends(verify_api_key_dependency),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Key).where(Key.id == key_id))
     key = result.scalar_one_or_none()
@@ -193,11 +196,13 @@ async def check_user_activation(
         return {"has_activated_key": False}
 
 
-@router.delete("/keys/{key_id}", description="Удаление ключа по его ID (требуется аутентификация)")
+@router.delete(
+    "/keys/{key_id}", description="Удаление ключа по его ID (требуется аутентификация)"
+)
 async def delete_key(
     key_id: str,
     _: None = Depends(verify_api_key_dependency),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Key).where(Key.id == key_id))
     key = result.scalar_one_or_none()

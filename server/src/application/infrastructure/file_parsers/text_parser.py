@@ -1,6 +1,8 @@
-import aiofiles
-from typing import Dict, Any
 from pathlib import Path
+from typing import Any, Dict
+
+import aiofiles
+
 from .base_parser import BaseFileParser
 
 

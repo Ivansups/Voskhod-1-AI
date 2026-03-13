@@ -1,6 +1,6 @@
 import abc
-from typing import Dict, Any
 from pathlib import Path
+from typing import Any, Dict
 
 
 class BaseFileParser(abc.ABC):
@@ -8,8 +8,8 @@ class BaseFileParser(abc.ABC):
 
     # Константы для разделения на чанки
     MAX_CHUNK_SIZE = 1500  # Максимальный размер чанка в символах
-    MIN_CHUNK_SIZE = 50    # Минимальный размер чанка в символах
-    OVERLAP_SIZE = 100     # Размер перекрытия между чанками
+    MIN_CHUNK_SIZE = 50  # Минимальный размер чанка в символах
+    OVERLAP_SIZE = 100  # Размер перекрытия между чанками
     """Абстрактный базовый класс для парсеров файлов."""
 
     @property
@@ -93,7 +93,13 @@ class BaseFileParser(abc.ABC):
             # Если конец находится в середине слова, ищем границу слова
             if end < len(text):
                 # Ищем ближайший пробел или перенос строки
-                while end > start + self.MIN_CHUNK_SIZE and text[end] not in [' ', '\n', '.', '!', '?']:
+                while end > start + self.MIN_CHUNK_SIZE and text[end] not in [
+                    " ",
+                    "\n",
+                    ".",
+                    "!",
+                    "?",
+                ]:
                     end -= 1
 
                 # Если не нашли хорошую границу, просто режем по размеру

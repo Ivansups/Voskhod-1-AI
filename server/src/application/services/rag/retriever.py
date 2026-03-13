@@ -1,10 +1,9 @@
-from typing import List, Dict, Any, Optional
-import sys
-from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from application.infrastructure.vector_db.qdrant_client import QdrantClient
-from .embedding_service import EmbeddingService
 from application.core.config import settings
+from application.infrastructure.vector_db.qdrant_client import QdrantClient
+
+from .embedding_service import EmbeddingService
 
 
 class RAGRetriever:
@@ -20,7 +19,9 @@ class RAGRetriever:
         self.qdrant_client = qdrant_client
         self.embedding_service = embedding_service
         self.top_k = top_k or settings.RAG_TOP_K
-        self.score_threshold = score_threshold or settings.RAG_SCORE_THRESHOLD
+        self.score_threshold = (
+            score_threshold if score_threshold is not None else 0.1
+        )  # Пониженный порог для работы
 
     async def retrieve(
         self,

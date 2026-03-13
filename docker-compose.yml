@@ -97,7 +97,7 @@ services:
 
       # Git Sync
       GIT_REPO_URL: ${GIT_REPO_URL}
-      GIT_LOCAL_PATH: ${GIT_LOCAL_PATH}
+      GIT_LOCAL_PATH: data/git_repo
       GIT_BRANCH: ${GIT_BRANCH}
       GIT_SYNC_INTERVAL_MINUTES: ${GIT_SYNC_INTERVAL_MINUTES}
 
@@ -121,6 +121,76 @@ services:
       timeout: 10s
       retries: 3
 
+  # Сервис автоматической индексации документов
+  indexer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: voskhod_indexer
+    environment:
+      # PostgreSQL
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB}
+
+      # Qdrant
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${QDRANT_API_KEY}
+      QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION_NAME}
+
+      # Redis
+      REDIS_URL: redis://redis:6379
+
+      # OpenRouter Configuration
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL}
+      OPENROUTER_TEMPERATURE: ${OPENROUTER_TEMPERATURE}
+      OPENROUTER_MAX_TOKENS: ${OPENROUTER_MAX_TOKENS}
+
+      # Ollama Configuration
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
+      OLLAMA_EMBEDDING_BASE_URL: ${OLLAMA_EMBEDDING_BASE_URL}
+      OLLAMA_MODEL: ${OLLAMA_MODEL}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL}
+      OLLAMA_TEMPERATURE: ${OLLAMA_TEMPERATURE}
+      OLLAMA_MAX_TOKENS: ${OLLAMA_MAX_TOKENS}
+
+      # Embedding Service Selection
+      EMBEDDING_SERVICE: ${EMBEDDING_SERVICE}
+
+      # RAG Configuration
+      RAG_TOP_K: ${RAG_TOP_K}
+      RAG_SCORE_THRESHOLD: ${RAG_SCORE_THRESHOLD}
+
+      # Git Sync
+      GIT_REPO_URL: ${GIT_REPO_URL}
+      GIT_LOCAL_PATH: data/git_repo
+      GIT_BRANCH: ${GIT_BRANCH}
+      GIT_SYNC_INTERVAL_MINUTES: ${GIT_SYNC_INTERVAL_MINUTES}
+
+      # Indexer Configuration
+      INDEXER_MODE: ${INDEXER_MODE:-once}
+
+      # Development & Logging
+      LOG_LEVEL: INFO
+      DEBUG: false
+    depends_on:
+      api:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    networks:
+      - voskhod_network
+    volumes:
+      - ./server:/app/server:ro
+      - git_repo_data:/app/server/src/data
+      - indexer_data:/app/indexer_data
+    command: ["python3", "indexer.py"]
+    restart: unless-stopped
+    profiles: ["indexer", "auto-indexer"]  # Включается только при необходимости
+
   # Телеграм бот (опционально, можно запускать отдельно)
   telegram_bot:
     build:
@@ -142,6 +212,8 @@ volumes:
   postgres_data:
   qdrant_data:
   redis_data:
+  indexer_data:
+  git_repo_data:
 
 networks:
   voskhod_network:

@@ -1,19 +1,20 @@
+import asyncio
 import logging
-from pathlib import Path
-from typing import Dict, Any, List, Optional
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 from application.core.config import settings
-from application.services.rag.embedding_service import (
-    EmbeddingService,
-    OpenAIEmbeddingService,
-    OllamaEmbeddingService,
-)
-from application.infrastructure.vector_db.qdrant_client import QdrantClient
 from application.infrastructure.file_parsers import (
     BaseFileParser,
-    TextFileParser,
     MarkdownFileParser,
+    TextFileParser,
+)
+from application.infrastructure.vector_db.qdrant_client import QdrantClient
+from application.services.rag.embedding_service import (
+    EmbeddingService,
+    OllamaEmbeddingService,
+    OpenAIEmbeddingService,
 )
 
 logger = logging.getLogger(__name__)
@@ -56,7 +57,10 @@ class DocumentIndexer:
         logger.info("DocumentIndexer инициализирован")
 
     async def index_directory(
-        self, directory_path: Path, collection_name: Optional[str] = None
+        self,
+        directory_path: Path,
+        collection_name: Optional[str] = None,
+        force_full_reindex: bool = False,
     ) -> Dict[str, Any]:
         """
         Индексирует все поддерживаемые файлы в директории.
@@ -73,13 +77,26 @@ class DocumentIndexer:
             - errors: список ошибок
         """
         try:
-            logger.info(f"Начинаем индексацию директории: {directory_path}")
+            logger.info(
+                f"Начинаем индексацию директории: {directory_path} (force_full_reindex={force_full_reindex})"
+            )
 
             supported_files = self._find_supported_files(directory_path)
             logger.info(f"Найдено {len(supported_files)} поддерживаемых файлов")
 
             collection_name = collection_name or settings.QDRANT_COLLECTION_NAME
             await self._ensure_collection_exists(collection_name)
+
+            # Проверяем, нужно ли очищать коллекцию
+            if force_full_reindex:
+                logger.info("Выполняем полную переиндексацию - очищаем коллекцию")
+                clear_result = await self.clear_collection(collection_name)
+                logger.info(f"Очищено {clear_result.get('cleared_points', 0)} точек")
+            else:
+                logger.info(
+                    "Выполняем инкрементальную индексацию - добавляем новые файлы"
+                )
+
             total_processed = 0
             total_chunks = 0
             errors = []
@@ -100,6 +117,10 @@ class DocumentIndexer:
                     )
                     total_chunks += chunks_count
                     total_processed += 1
+
+                    file_delay_sec = settings.INDEXER_FILE_DELAY_MS / 1000.0
+                    if file_delay_sec > 0 and i + 1 < total_files:
+                        await asyncio.sleep(file_delay_sec)
 
                 except Exception as e:
                     error_msg = f"Ошибка обработки файла {file_path}: {str(e)}"
@@ -203,8 +224,10 @@ class DocumentIndexer:
             avg_size = sum(chunk_sizes) / len(chunk_sizes)
             min_size = min(chunk_sizes)
             max_size = max(chunk_sizes)
-            logger.info(f"Файл {file_path}: {len(chunks)} чанков, "
-                       f"размер: avg={avg_size:.0f}, min={min_size}, max={max_size}")
+            logger.info(
+                f"Файл {file_path}: {len(chunks)} чанков, "
+                f"размер: avg={avg_size:.0f}, min={min_size}, max={max_size}"
+            )
 
         await self._index_chunks(chunks, collection_name)
 

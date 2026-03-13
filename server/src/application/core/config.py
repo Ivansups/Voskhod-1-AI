@@ -1,6 +1,7 @@
 import os
-from dotenv import load_dotenv
 from typing import Optional
+
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -48,6 +49,42 @@ class Settings:
     # Embeddings - выбор сервиса
     EMBEDDING_SERVICE: str = os.getenv("EMBEDDING_SERVICE", "ollama").lower()
 
+    # Embeddings - throttling и retries (provider-specific defaults)
+    @property
+    def EMBEDDING_DELAY_MS(self) -> int:
+        val = os.getenv("EMBEDDING_DELAY_MS")
+        if val is not None:
+            return int(val)
+        return 300 if self.EMBEDDING_SERVICE == "ollama" else 0
+
+    @property
+    def EMBEDDING_BATCH_SIZE(self) -> int:
+        val = os.getenv("EMBEDDING_BATCH_SIZE")
+        if val is not None:
+            return int(val)
+        return 10 if self.EMBEDDING_SERVICE == "ollama" else 100
+
+    @property
+    def EMBEDDING_MAX_RETRIES(self) -> int:
+        val = os.getenv("EMBEDDING_MAX_RETRIES")
+        if val is not None:
+            return int(val)
+        return 3 if self.EMBEDDING_SERVICE == "ollama" else 2
+
+    @property
+    def EMBEDDING_RETRY_BASE_DELAY_MS(self) -> int:
+        val = os.getenv("EMBEDDING_RETRY_BASE_DELAY_MS")
+        if val is not None:
+            return int(val)
+        return 1000 if self.EMBEDDING_SERVICE == "ollama" else 500
+
+    @property
+    def INDEXER_FILE_DELAY_MS(self) -> int:
+        val = os.getenv("INDEXER_FILE_DELAY_MS")
+        if val is not None:
+            return int(val)
+        return 1500 if self.EMBEDDING_SERVICE == "ollama" else 0
+
     # LLM - OpenRouter
     OPENROUTER_API_KEY: Optional[str] = os.getenv("OPENROUTER_API_KEY")
     OPENROUTER_MODEL: Optional[str] = os.getenv("OPENROUTER_MODEL")
@@ -64,7 +101,7 @@ class Settings:
 
     # LLM - Ollama
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.2")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.2:latest")
     OLLAMA_TEMPERATURE: Optional[float] = (
         float(os.getenv("OLLAMA_TEMPERATURE"))
         if os.getenv("OLLAMA_TEMPERATURE")

@@ -1,0 +1,1 @@
+scripts/check_indexing_status.sh

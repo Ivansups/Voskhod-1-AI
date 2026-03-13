@@ -4,7 +4,6 @@
 services:
   api:
     environment:
-      # Переопределите эти значения в вашем .env файле
       POSTGRES_USER: voskhod_user
       POSTGRES_PASSWORD: voskhod_password
       POSTGRES_HOST: postgres
@@ -13,37 +12,44 @@ services:
       QDRANT_URL: http://qdrant:6333
       REDIS_URL: redis://redis:6379
 
-      # Добавьте ваши реальные ключи
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-your_openrouter_key_here}
-      OPENROUTER_MODEL: openai/gpt-3.5-turbo
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-your_telegram_token_here}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL}
+      OPENROUTER_TEMPERATURE: ${OPENROUTER_TEMPERATURE}
+      OPENROUTER_MAX_TOKENS: ${OPENROUTER_MAX_TOKENS}
 
-      # Ollama для эмбеддингов (улучшенная модель)
-      EMBEDDING_SERVICE: ollama
-      OLLAMA_BASE_URL: http://host.docker.internal:11434
-      OLLAMA_EMBEDDING_BASE_URL: http://host.docker.internal:11434
-      OLLAMA_EMBEDDING_MODEL: mxbai-embed-large
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
 
-      # Qdrant настройки
-      QDRANT_COLLECTION_NAME: university_knowledge
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL}
+      OLLAMA_MODEL: ${OLLAMA_MODEL}
+      OLLAMA_TEMPERATURE: ${OLLAMA_TEMPERATURE}
+      OLLAMA_MAX_TOKENS: ${OLLAMA_MAX_TOKENS}
 
-      # RAG настройки
-      RAG_TOP_K: 5
-      RAG_SCORE_THRESHOLD: 0.7
+      EMBEDDING_SERVICE: ${EMBEDDING_SERVICE}
+      OLLAMA_EMBEDDING_BASE_URL: ${OLLAMA_EMBEDDING_BASE_URL}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL}
 
-      # Git Sync
-      GIT_BRANCH: master
+      RAG_TOP_K: ${RAG_TOP_K}
+      RAG_SCORE_THRESHOLD: ${RAG_SCORE_THRESHOLD}
+
+      QDRANT_COLLECTION_NAME: ${QDRANT_COLLECTION_NAME}
+
+      GIT_REPO_URL: ${GIT_REPO_URL}
+      GIT_LOCAL_PATH: data/git_repo
+      GIT_BRANCH: ${GIT_BRANCH}
 
     volumes:
-      # Монтируем исходный код для hot reload
       - ./server:/app/server
-      - /app/server/__pycache__  # Исключаем кэш
+      - /app/server/__pycache__
 
-    # Включаем телеграм бота по умолчанию для разработки
     profiles: []
 
+  indexer:
+    environment:
+      INDEXER_MODE: ${INDEXER_MODE:-once}
+    profiles: ["indexer", "auto-indexer"]  # auto-indexer для автоматического запуска
+
   telegram_bot:
-    profiles: []  # Включаем бота по умолчанию
+    profiles: []
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-your_telegram_token_here}
       API_BASE_URL: http://api:8000

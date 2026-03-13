@@ -9,9 +9,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from aiogram import Bot, Dispatcher
 
-from .config import TelegramConfig
-from .client import APIClient
 from .bot_service import ChatBot
+from .client import APIClient
+from .config import TelegramConfig
 from .handlers.commands import commands_router
 from .handlers.messages import messages_router
 

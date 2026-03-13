@@ -1,0 +1,1 @@
+scripts/start-with-indexing.sh

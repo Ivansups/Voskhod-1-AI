@@ -1,9 +1,7 @@
-from typing import Dict, Any, Optional
-import sys
-from pathlib import Path
+from typing import Any, Dict, Optional
 
-from .retriever import RAGRetriever
 from ..llm.llm_manager import LLMManager
+from .retriever import RAGRetriever
 
 
 class RAGEngine:
@@ -25,6 +23,7 @@ class RAGEngine:
         return_json: bool = True,
         filter: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
+        print(f"🔍 RAG QUERY: {question}, top_k={top_k}")  # DEBUG
         """
         Основной метод для выполнения RAG запроса.
 
@@ -54,6 +53,14 @@ class RAGEngine:
                 filter=filter,
             )
 
+            # Ограничиваем длину контекста для избежания проблем с LLM
+            max_context_length = 4000  # Ограничиваем до 4000 символов
+            if len(rag_context) > max_context_length:
+                rag_context = (
+                    rag_context[:max_context_length]
+                    + "\n\n[Контекст сокращен для экономии токенов]"
+                )
+
             sources = []
             for chunk in retrieved_chunks:
                 metadata = chunk.get("metadata", {})
@@ -69,12 +76,17 @@ class RAGEngine:
 
             # Логируем контекст для отладки
             import logging
+
             logger = logging.getLogger(__name__)
-            print(f"🤖 RAG DEBUG: Question: {question}")
-            print(f"🤖 RAG DEBUG: Found {len(retrieved_chunks)} chunks")
-            print(f"🤖 RAG DEBUG: Context length: {len(rag_context)} chars")
-            print(f"🤖 RAG DEBUG: Context preview: {rag_context[:300]}...")
-            print(f"🤖 RAG DEBUG: Sources: {[chunk.get('metadata', {}).get('file_path', '') for chunk in retrieved_chunks[:3]]}")
+            logger.info(f"RAG DEBUG: Question: {question}")
+            logger.info(f"RAG DEBUG: Found {len(retrieved_chunks)} chunks")
+            logger.info(f"RAG DEBUG: Context length: {len(rag_context)} chars")
+            logger.info(f"RAG DEBUG: Context preview: {rag_context[:300]}...")
+            logger.info(
+                f"RAG DEBUG: Sources in chunks: {[chunk.get('metadata', {}).get('file_path', '') for chunk in retrieved_chunks[:3]]}"
+            )
+            logger.info(f"RAG DEBUG: Sources list length: {len(sources)}")
+            logger.info(f"RAG DEBUG: Has RAG context: {bool(rag_context)}")
 
             result = self.llm_service.generate_answer_with_rag(
                 question=question, rag_context=rag_context, return_json=True

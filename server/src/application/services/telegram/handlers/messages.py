@@ -1,13 +1,14 @@
 """Обработчик сообщений в режиме чата."""
 
 import logging
-from aiogram import Router, F
-from aiogram.fsm.context import FSMContext
-from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.exceptions import TelegramBadRequest
 
-from ..states import ChatStates
+from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
+from aiogram.fsm.context import FSMContext
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
+
 from ..bot_service import ChatBot
+from ..states import ChatStates
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +49,6 @@ def create_activation_menu_keyboard() -> InlineKeyboardMarkup:
         ]
     )
     return keyboard
-
-
 
 
 @messages_router.message(ChatStates.dialog_mode, F.text)
@@ -112,10 +111,12 @@ async def handle_dialog_message(
         request_data = {"question": user_message}
 
         if chat_history:
-            history_context = "\n".join([
-                f"Пользователь: {msg['user_message']}\nБот: {msg['bot_response']}"
-                for msg in chat_history[-3:]
-            ])
+            history_context = "\n".join(
+                [
+                    f"Пользователь: {msg['user_message']}\nБот: {msg['bot_response']}"
+                    for msg in chat_history[-3:]
+                ]
+            )
             request_data["history_context"] = history_context
 
         response = await bot_service.api_client.client.post(
@@ -214,9 +215,7 @@ async def handle_timeout_warning_message(
 
     await bot_service.reset_timer(user_id)
 
-    await message.reply(
-        "✅ Диалог продолжен!\n\nТаймер бездействия сброшен."
-    )
+    await message.reply("✅ Диалог продолжен!\n\nТаймер бездействия сброшен.")
 
     await handle_dialog_message(message, state, bot_service)
 

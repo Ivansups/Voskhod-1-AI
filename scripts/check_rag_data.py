@@ -2,10 +2,12 @@
 """Скрипт для проверки данных в RAG системе."""
 
 import asyncio
-import httpx
-import json
 import sys
-sys.path.append('/Users/ivanklimov/Documents/GitHub/Voskhod-1-AI/server/src')
+from pathlib import Path
+
+import httpx
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "server" / "src"))
 
 from application.services.rag.embedding_service import get_embedding_service
 
@@ -28,12 +30,7 @@ async def check_qdrant_data():
     qdrant_url = "http://localhost:6333"
     search_url = f"{qdrant_url}/collections/university_knowledge/points/search"
 
-    payload = {
-        "vector": vector,
-        "limit": 5,
-        "with_payload": True,
-        "with_vector": False
-    }
+    payload = {"vector": vector, "limit": 5, "with_payload": True, "with_vector": False}
 
     async with httpx.AsyncClient() as client:
         try:
@@ -66,7 +63,7 @@ async def test_specific_queries():
         "дискретная математика",
         "математический анализ",
         "программирование",
-        "базы данных"
+        "базы данных",
     ]
 
     for query in queries:
@@ -83,7 +80,7 @@ async def test_specific_queries():
             "limit": 3,
             "with_payload": True,
             "with_vector": False,
-            "score_threshold": 0.5
+            "score_threshold": 0.5,
         }
 
         async with httpx.AsyncClient() as client:
@@ -114,7 +111,7 @@ async def test_api_rag_flow():
     test_questions = [
         "Что изучают на курсе алгоритмов и структур данных?",
         "Расскажи о дискретной математике",
-        "Какие темы есть в математическом анализе?"
+        "Какие темы есть в математическом анализе?",
     ]
 
     for question in test_questions:
@@ -122,10 +119,7 @@ async def test_api_rag_flow():
 
         # Делаем запрос к API
         api_url = "http://localhost:8000/v1/chat"
-        payload = {
-            "question": question,
-            "top_k": 3
-        }
+        payload = {"question": question, "top_k": 3}
 
         try:
             response = httpx.post(api_url, json=payload, timeout=30)

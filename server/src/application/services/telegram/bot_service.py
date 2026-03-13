@@ -2,7 +2,8 @@
 
 import asyncio
 import logging
-from typing import Dict, Any
+from typing import Any, Dict
+
 from aiogram import Bot
 
 from .client import APIClient
@@ -113,6 +114,7 @@ class ChatBot:
             del self.chat_histories[user_id]
 
         from application.services.llm.llm_manager import get_llm_service
+
         llm_service = get_llm_service()
         llm_service.clear_history()
 
@@ -128,6 +130,7 @@ class ChatBot:
         self.chat_histories[user_id] = []
 
         from application.services.llm.llm_manager import get_llm_service
+
         llm_service = get_llm_service()
         llm_service.clear_history()
 
@@ -221,8 +224,7 @@ class ChatBot:
                 params["user_tag"] = user_tag
 
             response = await self.api_client.client.post(
-                f"{self.api_client.config.api_base_url}/v1/keys/verify",
-                params=params
+                f"{self.api_client.config.api_base_url}/v1/keys/verify", params=params
             )
 
             response.raise_for_status()

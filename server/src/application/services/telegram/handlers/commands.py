@@ -1,18 +1,19 @@
 """Обработчики команд телеграм бота."""
 
 import logging
-from aiogram import Router, F
+
+from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.types import (
-    Message,
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
     CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
 )
 
-from ..states import ChatStates
 from ..bot_service import ChatBot
+from ..states import ChatStates
 
 logger = logging.getLogger(__name__)
 
@@ -76,9 +77,15 @@ async def cmd_start(message: Message, state: FSMContext, bot_service: ChatBot) -
     user_tag = username
 
     activation_result = await bot_service.check_user_activation(user_tag)
-    has_activated_key = activation_result.get("has_activated_key", False) if isinstance(activation_result, dict) else activation_result
+    has_activated_key = (
+        activation_result.get("has_activated_key", False)
+        if isinstance(activation_result, dict)
+        else activation_result
+    )
 
-    logger.info(f"User {user_id} ({user_tag}) activation check result: {activation_result}, has_activated_key: {has_activated_key}")
+    logger.info(
+        f"User {user_id} ({user_tag}) activation check result: {activation_result}, has_activated_key: {has_activated_key}"
+    )
 
     if has_activated_key:
         await state.set_state(ChatStates.activated)
@@ -376,8 +383,14 @@ async def cmd_dialog(message: Message, state: FSMContext, bot_service: ChatBot) 
     if not user_data.get("user_tag"):
         await state.update_data(user_tag=user_tag)
 
-    activation_result = await bot_service.check_user_activation(user_tag.replace("@", ""))
-    has_activated_key = activation_result.get("has_activated_key", False) if isinstance(activation_result, dict) else activation_result
+    activation_result = await bot_service.check_user_activation(
+        user_tag.replace("@", "")
+    )
+    has_activated_key = (
+        activation_result.get("has_activated_key", False)
+        if isinstance(activation_result, dict)
+        else activation_result
+    )
     if not has_activated_key:
         await state.set_state(ChatStates.waiting_for_activation)
         await message.reply(
@@ -430,7 +443,9 @@ async def cmd_status(message: Message, state: FSMContext, bot_service: ChatBot) 
         return
 
     try:
-        activation_info = await bot_service.check_user_activation(user_tag.replace("@", ""))
+        activation_info = await bot_service.check_user_activation(
+            user_tag.replace("@", "")
+        )
 
         if activation_info.get("has_activated_key"):
             status_text = (
@@ -512,8 +527,14 @@ async def callback_dialog(
     if not user_data.get("user_tag"):
         await state.update_data(user_tag=user_tag)
 
-    activation_result = await bot_service.check_user_activation(user_tag.replace("@", ""))
-    has_activated_key = activation_result.get("has_activated_key", False) if isinstance(activation_result, dict) else activation_result
+    activation_result = await bot_service.check_user_activation(
+        user_tag.replace("@", "")
+    )
+    has_activated_key = (
+        activation_result.get("has_activated_key", False)
+        if isinstance(activation_result, dict)
+        else activation_result
+    )
     if not has_activated_key:
         await callback.message.edit_text(
             "🔑 <b>Для использования диалога требуется активация ключа</b>\n\n"
@@ -525,25 +546,30 @@ async def callback_dialog(
 
     current_state = await state.get_state()
     if current_state == ChatStates.dialog_mode:
-        await callback.message.edit_text(
-            "🎯 <b>Диалог уже активен!</b>\n\n"
-            "Задавайте свои вопросы или используйте /end для завершения.",
-            parse_mode="HTML",
-            reply_markup=create_main_menu_keyboard(),
-        )
+        # Не редактируем сообщение, если оно уже содержит нужный текст
+        try:
+            await callback.answer("Диалог уже активен!")
+        except Exception:
+            pass  # Игнорируем ошибки callback.answer
         return
 
     await state.set_state(ChatStates.dialog_mode)
     await bot_service.start_inactivity_timer(user_id)
 
-    await callback.message.edit_text(
+    try:
+        await callback.message.edit_text(
             "🎯 <b>Диалог начат!</b>\n\n"
-        "Теперь вы можете задавать вопросы. "
-        "Я буду искать ответы в учебных материалах университета.\n\n"
-        "Напишите ваш вопрос или нажмите /end чтобы завершить диалог.",
-        parse_mode="HTML",
-        reply_markup=create_main_menu_keyboard(),
-    )
+            "Теперь вы можете задавать вопросы. "
+            "Я буду искать ответы в учебных материалах университета.\n\n"
+            "Напишите ваш вопрос или нажмите /end чтобы завершить диалог.",
+            parse_mode="HTML",
+            reply_markup=create_main_menu_keyboard(),
+        )
+    except Exception:
+        # Если редактирование не удалось (например, контент не изменился), просто отвечаем
+        await callback.answer("Диалог уже начат!")
+
+    await callback.answer()
 
     logger.info(f"User {user_id} started dialog via button")
 
@@ -567,7 +593,9 @@ async def callback_status(
         return
 
     try:
-        activation_info = await bot_service.check_user_activation(user_tag.replace("@", ""))
+        activation_info = await bot_service.check_user_activation(
+            user_tag.replace("@", "")
+        )
 
         if activation_info.get("has_activated_key"):
             status_text = (
@@ -729,7 +757,11 @@ async def callback_start(
     user_tag = username
 
     activation_result = await bot_service.check_user_activation(user_tag)
-    has_activated_key = activation_result.get("has_activated_key", False) if isinstance(activation_result, dict) else activation_result
+    has_activated_key = (
+        activation_result.get("has_activated_key", False)
+        if isinstance(activation_result, dict)
+        else activation_result
+    )
 
     if has_activated_key:
         await state.set_state(ChatStates.activated)

@@ -1,7 +1,12 @@
 import abc
-from typing import Optional, List
+import asyncio
+import logging
+from typing import List, Optional
+
 import httpx
 from application.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class EmbeddingService(abc.ABC):
@@ -138,25 +143,78 @@ class OllamaEmbeddingService(EmbeddingService):
         """Закрывает HTTP клиент."""
         await self.client.aclose()
 
+    def _is_retryable_error(self, exc: BaseException) -> bool:
+        """Проверяет, является ли ошибка временной (retryable)."""
+        if isinstance(exc, httpx.TimeoutException):
+            return True
+        if isinstance(exc, httpx.ConnectError):
+            return True
+        if isinstance(exc, httpx.HTTPStatusError):
+            status = getattr(exc, "response", None) and getattr(
+                exc.response, "status_code", None
+            )
+            if status:
+                return status >= 500 or status == 429
+        return False
+
     async def embed(self, text: str) -> List[float]:
-        """Генерирует эмбеддинг для текста через Ollama API."""
+        """Генерирует эмбеддинг для текста через Ollama API с retry и exponential backoff."""
         url = f"{self.base_url}/api/embeddings"
         payload = {"model": self.model, "prompt": text}
+        max_retries = settings.EMBEDDING_MAX_RETRIES
+        base_delay_ms = settings.EMBEDDING_RETRY_BASE_DELAY_MS
+        max_delay_sec = 30
 
-        response = await self.client.post(url, json=payload)
-        response.raise_for_status()
-        result = response.json()
-        embedding = result.get("embedding", [])
-        if not embedding:
-            raise ValueError("Пустой эмбеддинг от Ollama API")
-        return embedding
+        last_exc = None
+        for attempt in range(max_retries + 1):
+            try:
+                response = await self.client.post(url, json=payload)
+                response.raise_for_status()
+                result = response.json()
+                embedding = result.get("embedding", [])
+                if not embedding:
+                    raise ValueError("Пустой эмбеддинг от Ollama API")
+                return embedding
+            except (
+                httpx.TimeoutException,
+                httpx.ConnectError,
+                httpx.HTTPStatusError,
+            ) as e:
+                last_exc = e
+                if not self._is_retryable_error(e) or attempt >= max_retries:
+                    raise
+                delay_sec = min(
+                    (base_delay_ms / 1000.0) * (2**attempt),
+                    max_delay_sec,
+                )
+                logger.warning(
+                    "Ollama embedding retry %d/%d after %s: %s",
+                    attempt + 1,
+                    max_retries,
+                    type(e).__name__,
+                    str(e),
+                )
+                await asyncio.sleep(delay_sec)
+        if last_exc:
+            raise last_exc
+        raise RuntimeError("Unexpected embed() loop exit")
 
     async def embed_batch(self, texts: List[str]) -> List[List[float]]:
-        """Генерирует эмбеддинги для списка текстов через Ollama API."""
+        """Генерирует эмбеддинги для списка текстов через Ollama API с throttling."""
         embeddings = []
-        for text in texts:
-            embedding = await self.embed(text)
-            embeddings.append(embedding)
+        batch_size = settings.EMBEDDING_BATCH_SIZE
+        delay_sec = settings.EMBEDDING_DELAY_MS / 1000.0
+
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i : i + batch_size]
+            for text in batch:
+                embedding = await self.embed(text)
+                embeddings.append(embedding)
+                if delay_sec > 0:
+                    await asyncio.sleep(delay_sec)
+            # Пауза между мини-батчами (если есть следующий батч)
+            if i + batch_size < len(texts) and delay_sec > 0:
+                await asyncio.sleep(delay_sec)
         return embeddings
 
     def get_vector_size(self) -> int:

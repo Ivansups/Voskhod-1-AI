@@ -1,10 +1,10 @@
+from application.api.v1.routes.admin.admin import router as admin_router
+from application.api.v1.routes.chat.chat import router as chat_router
+from application.api.v1.routes.health.health import router as health_router
+from application.api.v1.routes.key.key import router as key_router
+from application.api.v1.routes.llm.llm import router as llm_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from application.api.v1.routes.health.health import router as health_router
-from application.api.v1.routes.chat.chat import router as chat_router
-from application.api.v1.routes.admin.admin import router as admin_router
-from application.api.v1.routes.llm.llm import router as llm_router
-from application.api.v1.routes.key.key import router as key_router
 
 app = FastAPI()
 

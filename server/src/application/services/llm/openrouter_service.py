@@ -1,7 +1,9 @@
-import openai
-from .llm_manager import LLMManager
 from typing import Optional
+
+import openai
 from application.core.config import settings
+
+from .llm_manager import LLMManager
 
 
 class OpenRouterService(LLMManager):
@@ -25,23 +27,27 @@ class OpenRouterService(LLMManager):
             model=model, temperature=temperature, max_tokens=max_tokens, api_key=api_key
         )
         self.client = openai.OpenAI(
-            api_key=api_key,
-            base_url="https://openrouter.ai/api/v1"
+            api_key=api_key, base_url="https://openrouter.ai/api/v1"
         )
 
     def generate_answer(self, context: str) -> str:
         import logging
+
         logger = logging.getLogger(__name__)
 
         # Создаем временные сообщения с контекстом для этого запроса
         messages_for_request = self.messages.copy()
 
         # Если контекст отличается от последнего сообщения пользователя, добавляем его
-        if context and (not messages_for_request or messages_for_request[-1]["content"] != context):
+        if context and (
+            not messages_for_request or messages_for_request[-1]["content"] != context
+        ):
             messages_for_request.append({"role": "user", "content": context})
 
         # Логируем запрос для отладки
-        logger.info(f"OpenRouter request - Model: {self.model}, Messages count: {len(messages_for_request)}")
+        logger.info(
+            f"OpenRouter request - Model: {self.model}, Messages count: {len(messages_for_request)}"
+        )
         for i, msg in enumerate(messages_for_request):
             logger.info(f"Message {i}: {msg['role']} - {msg['content'][:100]}...")
 
@@ -58,7 +64,9 @@ class OpenRouterService(LLMManager):
             )
 
             # Добавляем в историю: пользовательское сообщение (если его там нет) и ответ ассистента
-            if context and (not self.messages or self.messages[-1]["content"] != context):
+            if context and (
+                not self.messages or self.messages[-1]["content"] != context
+            ):
                 self.messages.append({"role": "user", "content": context})
             self.messages.append({"role": "assistant", "content": response})
 

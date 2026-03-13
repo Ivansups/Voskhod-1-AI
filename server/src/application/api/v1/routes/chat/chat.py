@@ -1,10 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
 from typing import Optional
 
 from application.api.deps import get_db, get_rag_engine, verify_api_key_dependency
 from application.services.rag.engine import RAGEngine
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(tags=["chat"])
 
@@ -31,8 +31,6 @@ async def chat(
 ):
     """Основная эндпоинт для чата с RAG системой."""
     try:
-        llm_service = rag_engine.get_llm_service()
-
         enhanced_question = request.question
         if request.history_context:
             enhanced_question = f"""История предыдущего разговора:
@@ -59,16 +57,12 @@ async def chat(
 
 
 @router.get("/chat/history")
-async def chat_history(
-    db: AsyncSession = Depends(get_db)
-):
+async def chat_history(db: AsyncSession = Depends(get_db)):
     """Получение истории чата для API ключа."""
     return {"message": "История чата пока не реализована"}
 
 
 @router.delete("/chat/history")
-async def delete_chat_history(
-    db: AsyncSession = Depends(get_db)
-):
+async def delete_chat_history(db: AsyncSession = Depends(get_db)):
     """Очистка истории чата для API ключа."""
     return {"message": "Очистка истории пока не реализована"}

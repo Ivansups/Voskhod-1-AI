@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Request, BackgroundTasks, HTTPException
-from typing import Dict, Any
-from application.services.git_sync import GitSyncService
+from typing import Any, Dict
+
 from application.core.config import settings
+from application.services.git_sync import GitSyncService
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 
 router = APIRouter(tags=["admin"])
 
@@ -10,29 +11,37 @@ git_sync_service = None
 if settings.GIT_REPO_URL:
     try:
         git_sync_service = GitSyncService()
-    except Exception as e:
+    except Exception:
         pass
 
 
 @router.post("/admin/sync")
 async def admin_sync(
-    background_tasks: BackgroundTasks, request: Request
+    background_tasks: BackgroundTasks, request: Request, force: bool = False
 ) -> Dict[str, Any]:
     """
     Запуск синхронизации Git репозитория и переиндексации документов.
 
     Синхронизация запускается в фоне через BackgroundTasks FastAPI.
+
+    Args:
+        force: Принудительная полная переиндексация (очищает всю коллекцию)
     """
     if not git_sync_service:
         raise HTTPException(
             status_code=503,
-            detail="Git sync service not configured. Set GIT_REPO_URL to enable sync functionality."
+            detail="Git sync service not configured. Set GIT_REPO_URL to enable sync functionality.",
         )
 
     try:
-        background_tasks.add_task(git_sync_service.sync_and_index)
+        background_tasks.add_task(git_sync_service.sync_and_index, force)
 
-        return {"message": "Синхронизация запущена в фоне", "status": "running"}
+        mode = "полной переиндексации" if force else "инкрементальной индексации"
+        return {
+            "message": f"Синхронизация ({mode}) запущена в фоне",
+            "status": "running",
+            "force_reindex": force,
+        }
 
     except Exception as e:
         raise HTTPException(

@@ -1,6 +1,5 @@
 import abc
-from typing import Optional, List, Dict, Any
-from application.core.config import settings
+from typing import Any, Dict, List, Optional
 
 
 class LLMManager(abc.ABC):
@@ -20,7 +19,10 @@ class LLMManager(abc.ABC):
         self.base_url = base_url
         self.messages: List[dict[str, str]] = []
         self.messages.append(
-            {"role": "system", "content": "Ты помощник студента. Отвечай на вопросы пользователя на основе предоставленного контекста."}
+            {
+                "role": "system",
+                "content": "Ты помощник студента. Отвечай на вопросы пользователя на основе предоставленного контекста.",
+            }
         )
 
     @abc.abstractmethod
@@ -135,31 +137,21 @@ def get_llm_service() -> LLMManager:
         ValueError: Если OpenRouter не настроен или не работает
     """
     global _llm_service_instance
-    import os
 
     if _llm_service_instance is not None:
         return _llm_service_instance
 
-    openrouter_key = os.getenv("OPENROUTER_API_KEY", settings.OPENROUTER_API_KEY)
-
-    # OpenRouter как основной сервис, Ollama как fallback
-    if openrouter_key and openrouter_key.strip():
-        try:
-            from .openrouter_service import OpenRouterService
-            openrouter_service = OpenRouterService()
-            _llm_service_instance = openrouter_service
-            return _llm_service_instance
-        except Exception as e:
-            print(f"⚠️  OpenRouter недоступен ({e}), пробуем Ollama...")
-
-    # Fallback на Ollama
+    # Ollama как основной сервис (стабильный)
     try:
         from .ollama_service import OllamaService
+
         ollama_service = OllamaService()
         _llm_service_instance = ollama_service
         return _llm_service_instance
     except Exception as e:
-        raise ValueError(f"Ни OpenRouter, ни Ollama не доступны: {e}")
+        raise ValueError(f"Ollama недоступен: {e}")
+
+    # OpenRouter отключен для стабильности
 
 
 def reset_llm_service() -> None:

@@ -1,7 +1,9 @@
-from .llm_manager import LLMManager
 from typing import Optional
+
 import httpx
 from application.core.config import settings
+
+from .llm_manager import LLMManager
 
 
 class OllamaService(LLMManager):

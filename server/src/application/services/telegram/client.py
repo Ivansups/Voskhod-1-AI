@@ -1,7 +1,9 @@
 """HTTP клиент для интеграции с FastAPI."""
 
+from typing import Any, Dict, Optional
+
 import httpx
-from typing import Dict, Any, Optional
+
 from .config import TelegramConfig
 
 

@@ -1,6 +1,7 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from .models.base import Base
 from application.core.config import settings
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from .models.base import Base
 
 async_url = settings.POSTGRES_URL
 

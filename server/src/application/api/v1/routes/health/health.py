@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Request, HTTPException
-from httpx import AsyncClient
-from application.services.git_sync import GitSyncService
 from application.core.config import settings
+from application.services.git_sync import GitSyncService
+from fastapi import APIRouter, HTTPException, Request
+from httpx import AsyncClient
 
 router = APIRouter(tags=["health"])
 
@@ -9,7 +9,7 @@ git_sync_service = None
 if settings.GIT_REPO_URL:
     try:
         git_sync_service = GitSyncService()
-    except Exception as e:
+    except Exception:
         pass
 
 

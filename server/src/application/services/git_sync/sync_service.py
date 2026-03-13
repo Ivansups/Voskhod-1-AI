@@ -1,11 +1,12 @@
 import logging
-from pathlib import Path
-from typing import Optional, Dict, Any
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Optional
+
+from application.core.config import settings
 from git import Repo
 from git.exc import GitCommandError, InvalidGitRepositoryError
 
-from application.core.config import settings
 from .indexer import DocumentIndexer
 
 logger = logging.getLogger(__name__)
@@ -75,9 +76,12 @@ class GitSyncService:
         except Exception:
             return 0
 
-    async def sync_and_index(self) -> Dict[str, Any]:
+    async def sync_and_index(self, force_full_reindex: bool = False) -> Dict[str, Any]:
         """
         Основной метод синхронизации и индексации.
+
+        Args:
+            force_full_reindex: Принудительная полная переиндексация
 
         Returns:
             Dict с результатами операции:
@@ -96,8 +100,32 @@ class GitSyncService:
             self.current_progress = 30
             logger.info("Git синхронизация завершена, переходим к индексации...")
 
+            # Проверяем необходимость индексации
+            if not force_full_reindex:
+                is_up_to_date = await self._check_if_data_up_to_date(git_result)
+                if is_up_to_date:
+                    logger.info("Данные уже актуальные, пропускаем индексацию")
+                    self.current_phase = "ready"
+                    self.current_progress = 100
+                    self.last_sync_time = datetime.now()
+                    self.files_processed = 0
+                    self.total_files = 0
+
+                    return {
+                        "success": True,
+                        "git_status": git_result,
+                        "index_status": {
+                            "skipped": True,
+                            "reason": "data_already_up_to_date",
+                            "total_files": 0,
+                            "processed_files": 0,
+                            "indexed_chunks": 0,
+                        },
+                        "error": None,
+                    }
+
             self.current_phase = "indexing"
-            index_result = await self._index_documents()
+            index_result = await self._index_documents(force_full_reindex)
 
             self.current_phase = "ready"
             self.current_progress = 100
@@ -124,6 +152,56 @@ class GitSyncService:
                 "index_status": None,
                 "error": str(e),
             }
+
+    async def _check_if_data_up_to_date(self, git_result: Dict[str, Any]) -> bool:
+        """
+        Проверяет, актуальны ли данные в векторной БД.
+
+        Args:
+            git_result: Результат git синхронизации
+
+        Returns:
+            True если данные актуальные, False если нужна индексация
+        """
+        try:
+            if not self.local_path.exists():
+                return False
+
+            # Проверяем, есть ли данные в векторной БД (в будущем: metadata с commit hash)
+            # Для MVP просто проверяем, что коллекция существует и содержит данные
+            # В будущем можно добавить метаданные с коммит хэшем в БД
+
+            # Получаем количество документов в БД
+            documents_count = await self._count_indexed_documents()
+
+            # Если документов мало или их нет, считаем что данные не актуальные
+            if documents_count < 100:  # Пороговое значение
+                logger.info(
+                    f"Найдено только {documents_count} документов, нужна индексация"
+                )
+                return False
+
+            # Если был pull и есть новые коммиты, нужна индексация
+            if (
+                git_result.get("action") == "pull"
+                and git_result.get("commits_pulled", 0) > 0
+            ):
+                logger.info(
+                    f"Получено {git_result['commits_pulled']} новых коммитов, нужна индексация"
+                )
+                return False
+
+            # Если клонировали репозиторий, нужна индексация
+            if git_result.get("action") == "clone":
+                logger.info("Репозиторий только что клонирован, нужна индексация")
+                return False
+
+            logger.info("Данные в векторной БД кажутся актуальными")
+            return True
+
+        except Exception as e:
+            logger.warning(f"Ошибка при проверке актуальности данных: {e}")
+            return False
 
     async def _sync_repository(self) -> Dict[str, Any]:
         """
@@ -177,17 +255,26 @@ class GitSyncService:
             logger.error(f"Ошибка при работе с Git: {e}")
             raise Exception(f"Не удалось синхронизировать репозиторий: {e}")
 
-    async def _index_documents(self) -> Dict[str, Any]:
+    async def _index_documents(
+        self, force_full_reindex: bool = False
+    ) -> Dict[str, Any]:
         """
-        Индексирует все документы в репозитории.
+        Индексирует документы в репозитории.
+
+        Args:
+            force_full_reindex: Принудительная полная переиндексация
 
         Returns:
             Dict с результатами индексации
         """
         try:
-            logger.info("Начинаем индексацию документов...")
+            logger.info(
+                f"Начинаем индексацию документов (force_full_reindex={force_full_reindex})..."
+            )
 
-            result = await self.indexer.index_directory(self.local_path)
+            result = await self.indexer.index_directory(
+                self.local_path, force_full_reindex=force_full_reindex
+            )
 
             logger.info(f"Индексация завершена: {result}")
 

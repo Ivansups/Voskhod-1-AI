@@ -1,8 +1,10 @@
-from sqlalchemy import Column, String, Integer, DateTime, Boolean, select
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.sql import func
-from sqlalchemy.ext.asyncio import AsyncSession
 import uuid
+
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, select
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import func
+
 from .base import Base
 
 
@@ -17,8 +19,15 @@ class Key(Base):
     telegram_id = Column(String(50), nullable=True, index=True)
     tag = Column(String(100), nullable=True, index=True)
     count_requests = Column(Integer, default=0, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=True
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=True,
+    )
 
 
 async def verify_api_key(db: AsyncSession, api_key: str, user_tag: str = None) -> bool:
